@@ -231,7 +231,7 @@ function(CacheHandler_InitArtifact ARTIFACTS_CACHE_PATH_ARG
         
     endif()
 
-endfunction(ArtifactsHandler_InitArtifact)
+endfunction(CacheHandler_InitArtifact)
 
 #------------------------------------------------------------------------------#
 # Returns version of artifact.
@@ -264,5 +264,5 @@ function(CacheHandler_Get_ArtifactVersion ARTIFACT_NAME_ARG_ARG
         
     endif()
 
-endfunction(ArtifactsHandler_Get_ArtifactVersion)
+endfunction(CacheHandler_Get_ArtifactVersion)
 
