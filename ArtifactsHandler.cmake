@@ -424,17 +424,23 @@ function(ArtifactsHandler_Get_ArtifactsCachePath ARTIFACTS_CONFIG_FILE_PATH_ARG
     else()
 
         # Read cache path from configuration file
-        ConfigFileHandler_Get_CachePath(${ARTIFACTS_CONFIG_FILE_PATH} CACHE_PATH)
-        
-        if(NOT ${CACHE_PATH} STREQUAL "-")
-        
-            # Use cache path from configuration file
+        ConfigFileHandler_Get_CachePath("${ARTIFACTS_CONFIG_FILE_PATH_ARG}" CACHE_PATH)
+
+        if(NOT "${CACHE_PATH}" STREQUAL "-" AND IS_DIRECTORY "${CACHE_PATH}")
+
+            # Use cache path from configuration file, but only if it actually
+            # exists on this machine. This is a simple guard for a config file
+            # shared between Windows and Unix that only makes sense on one of them.
             set(${CACHE_PATH_ARG} "${CACHE_PATH}" PARENT_SCOPE)
             
             message(DEBUG "The cache path will be used from configuration file:${CACHE_PATH}")
             
         else()
-        
+
+            if(NOT "${CACHE_PATH}" STREQUAL "-")
+                message(STATUS "Configured cache path '${CACHE_PATH}' does not exist on this system, falling back to default cache path.")
+            endif()
+
             # Use default cache path
             set(${CACHE_PATH_ARG} "${ARTIFACTS_HANDLER_DEFAULT_CACHE_PATH}" PARENT_SCOPE)
             

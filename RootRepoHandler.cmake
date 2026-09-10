@@ -281,7 +281,8 @@ function(RootRepoHandler_DownloadArtifact_Bin ROOT_REPO_PATH_ARG
     RootRepoHandler_DownloadBin(${ROOT_REPO_PATH_ARG}
                                 ${ARTIFACT_NAME_ARG}
                                 ${TARGET_HASH}
-                                ${TEMP_FOLDER_PATH_ARG})
+                                ${TEMP_FOLDER_PATH_ARG}
+                                ${ARTIFACT_OS_ARG})
 
 endfunction(RootRepoHandler_DownloadArtifact_Bin)
 
@@ -474,7 +475,8 @@ endfunction()
 function(RootRepoHandler_DownloadBin ROOT_REPO_PATH_ARG 
                                      ARTIFACT_NAME_ARG
                                      COMMIT_HASH_ARG
-                                     TEMP_FOLDER_PATH_ARG)
+                                     TEMP_FOLDER_PATH_ARG
+                                     ARTIFACT_OS_ARG)
                                      
     set(ARTIFACT_DOWNLOAD_PATH "${TEMP_FOLDER_PATH_ARG}/${ARTIFACT_NAME_ARG}")
     
@@ -508,6 +510,7 @@ function(RootRepoHandler_DownloadBin ROOT_REPO_PATH_ARG
     
     RootRepoHandler_Get_VersionTag("${TAGS_CACHE_FILE_PATH}" 
                                    "${REQUIRED_VERSION}" 
+                                   "${ARTIFACT_OS_ARG}"
                                    FOUND_TAG_NAME 
                                    FOUND_TAG_NAME_SHA)
     
@@ -731,16 +734,19 @@ endfunction()
 
 
 #------------------------------------------------------------------------------#
-# Finds Git Tag for required version
+# Finds Git Tag for required version and OS
 #
-# ARTIFACTS_PATH_ARG       [in]: Path to the repository folder.
-# ARTIFACT_NAME_ARG        [in]: Name of artifact.
-# ARTIFACT_FOUND_NAME_ARG [out]: Name of the found folder
+# TAGS_FILE_PATH_ARG        [in]: Path to the JSON file with tag list
+# REQUIRED_VERSION_ARG      [in]: Required artifact version ("latest" or exact version)
+# ARTIFACT_OS_ARG           [in]: OS/platform suffix to filter tags by (e.g. Unix, Win, DarwinARM)
+# OUT_TAG_NAME_ARG         [out]: Name of the found tag
+# OUT_TAG_SHA_ARG          [out]: Commit SHA of the found tag
 #------------------------------------------------------------------------------#
 function(RootRepoHandler_Get_VersionTag TAGS_FILE_PATH_ARG
-                                        REQUIRED_VERSION_ARG
-                                        OUT_TAG_NAME_ARG
-                                        OUT_TAG_SHA_ARG)
+                                         REQUIRED_VERSION_ARG
+                                         ARTIFACT_OS_ARG
+                                         OUT_TAG_NAME_ARG
+                                         OUT_TAG_SHA_ARG)
 
     file(READ "${TAGS_FILE_PATH_ARG}" TAGS_JSON)
     string(JSON TAG_COUNT LENGTH "${TAGS_JSON}")
@@ -763,7 +769,7 @@ function(RootRepoHandler_Get_VersionTag TAGS_FILE_PATH_ARG
         foreach(I RANGE ${LAST_INDEX})
             string(JSON T_NAME GET "${TAGS_JSON}" ${I} "name")
 
-            if(T_NAME MATCHES "([0-9]+\\.[0-9]+\\.[0-9]+)")
+            if(T_NAME MATCHES "([0-9]+\\.[0-9]+\\.[0-9]+)-${ARTIFACT_OS_ARG}$")
                 set(T_VERSION "${CMAKE_MATCH_1}")
 
                 if(BEST_VERSION STREQUAL "" OR T_VERSION VERSION_GREATER BEST_VERSION)
@@ -784,7 +790,7 @@ function(RootRepoHandler_Get_VersionTag TAGS_FILE_PATH_ARG
     foreach(I RANGE ${LAST_INDEX})
         string(JSON T_NAME GET "${TAGS_JSON}" ${I} "name")
 
-        if(T_NAME MATCHES "([0-9]+\\.[0-9]+\\.[0-9]+)")
+        if(T_NAME MATCHES "([0-9]+\\.[0-9]+\\.[0-9]+)-${ARTIFACT_OS_ARG}$")
             set(T_VERSION "${CMAKE_MATCH_1}")
             if(T_VERSION VERSION_EQUAL REQUIRED_VERSION_ARG)
                 string(JSON T_SHA GET "${TAGS_JSON}" ${I} "commit" "sha")
