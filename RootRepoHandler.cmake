@@ -191,7 +191,20 @@ function(RootRepoHandler_DownloadArtifact_Bin ROOT_REPO_PATH_ARG
     
     # Separate list to rows
     string(REPLACE "\n" ";" COMMIT_LINES "${GIT_LOG_OUTPUT}")
-    
+
+    # Prvy prechod: zisti, ci nejaky commit na tomto branchi vobec spomina OS.
+    # Ak ano, artefakt je OS-dependent a OS filter sa vynuti. Ak nie, artefakt
+    # je OS-independent a filter sa preskoci uplne.
+    set(BIN_IS_OS_DEPENDENT FALSE)
+    foreach(LINE ${COMMIT_LINES})
+        string(REPLACE "||" ";" LINE_PARTS "${LINE}")
+        list(GET LINE_PARTS 1 COMMIT_MESSAGE)
+        if(COMMIT_MESSAGE MATCHES "(${ARTIFACTS_HANDLER_OS_WIN}|${ARTIFACTS_HANDLER_OS_UNIX}|${ARTIFACTS_HANDLER_OS_MAC})")
+            set(BIN_IS_OS_DEPENDENT TRUE)
+            break()
+        endif()
+    endforeach()
+
     set(FOUND_COMMIT_HASH "")
     
     foreach(LINE ${COMMIT_LINES})
@@ -200,8 +213,8 @@ function(RootRepoHandler_DownloadArtifact_Bin ROOT_REPO_PATH_ARG
         list(GET LINE_PARTS 0 COMMIT_HASH)
         list(GET LINE_PARTS 1 COMMIT_MESSAGE)
     
-        # OS filter
-        if(NOT COMMIT_MESSAGE MATCHES ${ARTIFACT_OS_ARG})
+        # OS filter - vynuti sa len pre artefakty, ktore OS naozaj rozlisuju
+        if(BIN_IS_OS_DEPENDENT AND NOT COMMIT_MESSAGE MATCHES "${ARTIFACT_OS_ARG}")
             continue()
         endif()
     
@@ -761,6 +774,24 @@ function(RootRepoHandler_Get_VersionTag TAGS_FILE_PATH_ARG
 
     math(EXPR LAST_INDEX "${TAG_COUNT} - 1")
 
+    # Zisti, ci je artefakt OS-dependent vobec - ak ma HOCIJEDEN tag OS suffix,
+    # berieme cely artefakt ako OS-dependent a vyzadujeme presnu zhodu OS.
+    # Len ak ZIADEN tag OS suffix nema, akceptujeme "holé" X.Y.Z tagy.
+    set(ARTIFACT_IS_OS_DEPENDENT FALSE)
+    foreach(I RANGE ${LAST_INDEX})
+        string(JSON T_NAME GET "${TAGS_JSON}" ${I} "name")
+        if(T_NAME MATCHES "[0-9]+\\.[0-9]+\\.[0-9]+-(${ARTIFACTS_HANDLER_OS_WIN}|${ARTIFACTS_HANDLER_OS_UNIX}|${ARTIFACTS_HANDLER_OS_MAC})$")
+            set(ARTIFACT_IS_OS_DEPENDENT TRUE)
+            break()
+        endif()
+    endforeach()
+
+    if(ARTIFACT_IS_OS_DEPENDENT)
+        set(VERSION_PATTERN "([0-9]+\\.[0-9]+\\.[0-9]+)-${ARTIFACT_OS_ARG}$")
+    else()
+        set(VERSION_PATTERN "([0-9]+\\.[0-9]+\\.[0-9]+)$")
+    endif()
+
     if(REQUIRED_VERSION_ARG STREQUAL "latest")
         set(BEST_VERSION "")
         set(BEST_NAME "")
@@ -769,7 +800,7 @@ function(RootRepoHandler_Get_VersionTag TAGS_FILE_PATH_ARG
         foreach(I RANGE ${LAST_INDEX})
             string(JSON T_NAME GET "${TAGS_JSON}" ${I} "name")
 
-            if(T_NAME MATCHES "([0-9]+\\.[0-9]+\\.[0-9]+)-${ARTIFACT_OS_ARG}$")
+            if(T_NAME MATCHES "${VERSION_PATTERN}")
                 set(T_VERSION "${CMAKE_MATCH_1}")
 
                 if(BEST_VERSION STREQUAL "" OR T_VERSION VERSION_GREATER BEST_VERSION)
@@ -790,7 +821,7 @@ function(RootRepoHandler_Get_VersionTag TAGS_FILE_PATH_ARG
     foreach(I RANGE ${LAST_INDEX})
         string(JSON T_NAME GET "${TAGS_JSON}" ${I} "name")
 
-        if(T_NAME MATCHES "([0-9]+\\.[0-9]+\\.[0-9]+)-${ARTIFACT_OS_ARG}$")
+        if(T_NAME MATCHES "${VERSION_PATTERN}")
             set(T_VERSION "${CMAKE_MATCH_1}")
             if(T_VERSION VERSION_EQUAL REQUIRED_VERSION_ARG)
                 string(JSON T_SHA GET "${TAGS_JSON}" ${I} "commit" "sha")
