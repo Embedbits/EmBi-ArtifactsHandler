@@ -111,7 +111,7 @@ function(RootRepoHandler_Prepare OFFLINE_MODE_STATE_ARG
         
             message(STATUS "Updating artifacts root repository.")
             
-            execute_process(COMMAND git fetch --no-recurse-submodules --depth=1 origin master
+            execute_process(COMMAND git fetch --no-recurse-submodules --depth=1 origin
                             WORKING_DIRECTORY "${ROOT_REPO_PATH_ARG}"
                             RESULT_VARIABLE FETCH_RES
                             OUTPUT_VARIABLE FETCH_OUT
@@ -121,7 +121,7 @@ function(RootRepoHandler_Prepare OFFLINE_MODE_STATE_ARG
                 message(WARNING "Git fetch failed:\n${FETCH_OUT}\n${FETCH_ERR}")
             endif()
                             
-            execute_process(COMMAND git pull --no-recurse-submodules origin master
+            execute_process(COMMAND git pull --no-recurse-submodules origin
                             WORKING_DIRECTORY "${ROOT_REPO_PATH_ARG}"
                             RESULT_VARIABLE PULL_RES
                             OUTPUT_VARIABLE PULL_OUT
@@ -140,54 +140,6 @@ function(RootRepoHandler_Prepare OFFLINE_MODE_STATE_ARG
     endif()
 
 endfunction(RootRepoHandler_Prepare)
-
-
-#------------------------------------------------------------------------------#
-# Checks, if the Bin branch already directly contains the required zip
-# archive at the currently checked-out commit (i.e. the archive is committed
-# in the repository itself, not only published as a GitHub release asset).
-#
-# If found, the archive is copied to the Bin temp folder under the same path
-# a downloaded release asset would use, so the rest of the flow (Install_Bin)
-# does not need to know where the file came from.
-#
-# SUBMODULE_DIR_ARG    [in]: Path to the checked-out artifact submodule
-# ARTIFACT_NAME_ARG    [in]: Name of the artifact being processed
-# TEMP_FOLDER_PATH_ARG [in]: Path to the Bin temp folder
-# FOUND_LOCAL_ZIP_ARG [out]: TRUE if a local zip archive was found (and
-#                            copied), otherwise FALSE
-#------------------------------------------------------------------------------#
-function(RootRepoHandler_Get_LocalBinZip SUBMODULE_DIR_ARG
-                                         ARTIFACT_NAME_ARG
-                                         TEMP_FOLDER_PATH_ARG
-                                         FOUND_LOCAL_ZIP_ARG)
-
-    set(${FOUND_LOCAL_ZIP_ARG} "FALSE" PARENT_SCOPE)
-
-    # Get list of all archives directly in the checked-out submodule folder
-    file(GLOB LOCAL_ZIP_FILES "${SUBMODULE_DIR_ARG}/*.zip")
-
-    if(NOT LOCAL_ZIP_FILES)
-        message(DEBUG "Bin branch does not directly contain a zip archive, release asset will be used.")
-        return()
-    endif()
-
-    list(GET LOCAL_ZIP_FILES 0 LOCAL_ZIP_FILE)
-
-    get_filename_component(LOCAL_ZIP_NAME "${LOCAL_ZIP_FILE}" NAME)
-
-    set(ARTIFACT_DOWNLOAD_PATH "${TEMP_FOLDER_PATH_ARG}/${ARTIFACT_NAME_ARG}")
-    file(MAKE_DIRECTORY "${ARTIFACT_DOWNLOAD_PATH}")
-
-    if(NOT EXISTS "${ARTIFACT_DOWNLOAD_PATH}/${LOCAL_ZIP_NAME}")
-        file(COPY "${LOCAL_ZIP_FILE}" DESTINATION "${ARTIFACT_DOWNLOAD_PATH}")
-    endif()
-
-    message(STATUS "Zip archive '${LOCAL_ZIP_NAME}' found directly in Bin branch, release asset download skipped.")
-
-    set(${FOUND_LOCAL_ZIP_ARG} "TRUE" PARENT_SCOPE)
-
-endfunction(RootRepoHandler_Get_LocalBinZip)
 
 
 #------------------------------------------------------------------------------#
@@ -338,22 +290,12 @@ function(RootRepoHandler_DownloadArtifact_Bin ROOT_REPO_PATH_ARG
         set(${ARTIFACT_BIN_VERSION_ACTIVE_ARG} ${TARGET_VERSION} PARENT_SCOPE)
         message(DEBUG "Switched to artifact Bin version ${TARGET_VERSION}")
     endif()
-
-    # Check, if the Bin branch already contains the required zip archive
-    # directly at this commit. If so, use it and skip downloading the
-    # release asset from GitHub.
-    RootRepoHandler_Get_LocalBinZip("${SUBMODULE_DIR}"
-                                    "${ARTIFACT_NAME_ARG}"
-                                    "${TEMP_FOLDER_PATH_ARG}"
-                                    FOUND_LOCAL_ZIP)
-
-    if(NOT FOUND_LOCAL_ZIP)
-        RootRepoHandler_DownloadBin(${ROOT_REPO_PATH_ARG}
-                                    ${ARTIFACT_NAME_ARG}
-                                    ${TARGET_HASH}
-                                    ${TEMP_FOLDER_PATH_ARG}
-                                    ${ARTIFACT_OS_ARG})
-    endif()
+    
+    RootRepoHandler_DownloadBin(${ROOT_REPO_PATH_ARG}
+                                ${ARTIFACT_NAME_ARG}
+                                ${TARGET_HASH}
+                                ${TEMP_FOLDER_PATH_ARG}
+                                ${ARTIFACT_OS_ARG})
 
 endfunction(RootRepoHandler_DownloadArtifact_Bin)
 
