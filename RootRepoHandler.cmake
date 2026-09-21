@@ -143,6 +143,54 @@ endfunction(RootRepoHandler_Prepare)
 
 
 #------------------------------------------------------------------------------#
+# Checks, if the Bin branch already directly contains the required zip
+# archive at the currently checked-out commit (i.e. the archive is committed
+# in the repository itself, not only published as a GitHub release asset).
+#
+# If found, the archive is copied to the Bin temp folder under the same path
+# a downloaded release asset would use, so the rest of the flow (Install_Bin)
+# does not need to know where the file came from.
+#
+# SUBMODULE_DIR_ARG    [in]: Path to the checked-out artifact submodule
+# ARTIFACT_NAME_ARG    [in]: Name of the artifact being processed
+# TEMP_FOLDER_PATH_ARG [in]: Path to the Bin temp folder
+# FOUND_LOCAL_ZIP_ARG [out]: TRUE if a local zip archive was found (and
+#                            copied), otherwise FALSE
+#------------------------------------------------------------------------------#
+function(RootRepoHandler_Get_LocalBinZip SUBMODULE_DIR_ARG
+                                         ARTIFACT_NAME_ARG
+                                         TEMP_FOLDER_PATH_ARG
+                                         FOUND_LOCAL_ZIP_ARG)
+
+    set(${FOUND_LOCAL_ZIP_ARG} "FALSE" PARENT_SCOPE)
+
+    # Get list of all archives directly in the checked-out submodule folder
+    file(GLOB LOCAL_ZIP_FILES "${SUBMODULE_DIR_ARG}/*.zip")
+
+    if(NOT LOCAL_ZIP_FILES)
+        message(DEBUG "Bin branch does not directly contain a zip archive, release asset will be used.")
+        return()
+    endif()
+
+    list(GET LOCAL_ZIP_FILES 0 LOCAL_ZIP_FILE)
+
+    get_filename_component(LOCAL_ZIP_NAME "${LOCAL_ZIP_FILE}" NAME)
+
+    set(ARTIFACT_DOWNLOAD_PATH "${TEMP_FOLDER_PATH_ARG}/${ARTIFACT_NAME_ARG}")
+    file(MAKE_DIRECTORY "${ARTIFACT_DOWNLOAD_PATH}")
+
+    if(NOT EXISTS "${ARTIFACT_DOWNLOAD_PATH}/${LOCAL_ZIP_NAME}")
+        file(COPY "${LOCAL_ZIP_FILE}" DESTINATION "${ARTIFACT_DOWNLOAD_PATH}")
+    endif()
+
+    message(STATUS "Zip archive '${LOCAL_ZIP_NAME}' found directly in Bin branch, release asset download skipped.")
+
+    set(${FOUND_LOCAL_ZIP_ARG} "TRUE" PARENT_SCOPE)
+
+endfunction(RootRepoHandler_Get_LocalBinZip)
+
+
+#------------------------------------------------------------------------------#
 # The binary part of the artifact shall be downloaded to the temporary location.
 #
 # ROOT_REPO_PATH_ARG                [in]: Path to the Root repository temp location
